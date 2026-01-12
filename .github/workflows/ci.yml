@@ -1,0 +1,59 @@
+name: CI - Tests & Linting
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+
+jobs:
+  build-and-test:
+    name: Python ${{ matrix.python-version }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+        os: [ubuntu-latest]   # You can add: windows-latest, macos-latest later
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. Set up Python environment
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'          # Cache pip dependencies automatically
+
+      # 3. Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          # Install test dependencies (we'll add pytest soon)
+          pip install pytest pytest-cov
+
+      # 4. (Optional but recommended) Basic smoke test - check if modules import
+      - name: Smoke test - import modules
+        run: |
+          python -c "import zxcvbn; print('zxcvbn imported OK')"
+          python -c "from patterns import *; print('patterns imported OK')"
+          python -c "from common_passwords import *; print('common_passwords imported OK')"
+
+      # 5. Run tests with pytest (will be useful once you add tests/)
+      - name: Run tests with pytest
+        run: |
+          pytest --cov=. --cov-report=xml || true   # || true = don't fail CI yet if no tests
+
+      # 6. (Optional) Show coverage summary in logs
+      - name: Show coverage summary
+        if: always()
+        run: |
+          coverage report --fail-under=0 || true
